@@ -64,7 +64,7 @@ def listen_for_wake_word(source):
         audio = speech.recognizer.listen(source)
         try:
             text = speech.recognizer.recognize_google(audio)
-            if 'jarvis' in text.lower() or 'wake up' in text.lower():
+            if 'jarvis' in text.lower() or 'wake up' in text.lower() or 'jj' in text.lower():
                 print('Wake word detected')
                 command = text.lower().split('jarvis', 1)[-1].strip()
                 if command:
@@ -180,11 +180,12 @@ def set_timer(command):
     elif 'hour' in unit:
         duration_seconds = duration * 3600
 
-    speech.speak(f"Setting a timer for {duration} {unit}.")
+    speech.speak(f"Setting a timer for {duration} {unit}s.")
     Timer(duration_seconds, timer_finished).start()
 
 def timer_finished():
-    speech.speak("Time's up!")
+    # TODO: Spila eitthvað hljóð þangað til að maður segir stop
+    speech.speak("Timer finished")
 
 if __name__ == "__main__":
     with sr.Microphone() as source:
