@@ -29,21 +29,38 @@ spotify = SpotifyController(name, FANCY)
 shopping_list = ShoppingList(name, FANCY)
 
 persistent_context = f"""
-You are an AI assistant called Jarvis. You are talking to a user named {name}, who lives in Iceland and is a computer science student at Reykjavík University.
-When addressing the user, use {name}. You are to speak with a posh british accent, like you are of royalty. Do NOT greet the user as you have already greeted him.
-Right now, it is {datetime.datetime.now()}.
+You are Jarvis, an AI voice assistant with a posh British accent, assisting {name}, a computer science student at Reykjavík University in Iceland. Your primary role is to answer questions and assist the user with various tasks by executing specific program functions.
+
+Here are the formats for different tasks:
+
+- Play music: [action: 'play music', 'song name', 'artist']
+- Shuffle Liked Songs: [action: 'shuffle liked songs']
+- Shopping List:
+  - Read: [action: 'read shopping list']
+  - Add: [action: 'add to shopping list', 'item1', 'item2', ...]
+  - Clear: [action: 'clear shopping list']
+- Timer: [action: 'set timer', 'duration', 'unit']
+- Weather: [action: 'get weather', 'city']
+
+For general information queries, respond with an appropriate answer without action calls.
+
+Instructions:
+1. Always respond with a polite message.
+2. If the request matches one of the tasks above, include the corresponding action call in brackets at the end.
+3. NEVER include the word 'Response:' or any other prefix in your reply.
+4. NEVER invent action calls or include brackets in your response unless it is one of the specified action calls.
+5. NEVER include action calls for general information queries.
+6. Do not question the action calls, just make them.
+7. Do not greet the user as he has already been greeted.
+8. Always include the action call in the correct format when the request matches one of the tasks.
 """
 
-# Maintain the last request and response
-last_interaction = {"user": "", "ai": ""}
 
 def clean_response(text):
     return text.strip().strip('-').strip()
 
 def get_openai_response(prompt):
-    conversation = (persistent_context + 
-                    f"\nUser: {last_interaction['user']}\nAI: {last_interaction['ai']}\n" + 
-                    f"User: {prompt}\nAI:")
+    conversation = f"{persistent_context}\nRequest from user: {prompt}"
     response = client.completions.create(
         model=model,
         prompt=conversation,
@@ -53,9 +70,7 @@ def get_openai_response(prompt):
         stop=None
     )
     response_text = response.choices[0].text.strip()
-    last_interaction['user'] = prompt
-    last_interaction['ai'] = clean_response(response_text)
-    return last_interaction['ai']
+    return clean_response(response_text)
 
 def listen_for_wake_word(source):
     print('Listening for "Jarvis"....')
@@ -66,7 +81,7 @@ def listen_for_wake_word(source):
             text = speech.recognizer.recognize_google(audio)
             if 'jarvis' in text.lower() or 'wake up' in text.lower() or 'jj' in text.lower():
                 print('Wake word detected')
-                command = text.lower().split('jarvis', 1)[-1].strip()
+                command = text.lower().replace('jarvis', '').replace('wake up', '').replace('jj', '').strip()
                 if command:
                     print(f'Command detected: {command}')
                     listen_and_respond(source, initial_prompt=command)
@@ -108,61 +123,76 @@ def listen_and_respond(source, initial_prompt=None):
             print('Listening timeout reached, please say something.')
 
 def handle_command(text, source):
-    if 'shopping list' in text.lower():
-        if 'clear' in text.lower():
-            shopping_list.clear_list()
-            return
-        else:
-            shopping_list.check_list(source)
-            return
-
-    if 'play' in text.lower() or 'shuffle' in text.lower():
-        spotify.play_music(text, source)
-        listen_for_wake_word(source)
-        return
-
-    if 'stop music' in text.lower():
-        spotify.pause_music()
-        return
-
-    if 'thanks' in text.lower() or 'thank you' in text.lower():
-        if not FANCY:
-            speech.speak_thanks()
-        else:
-            ellab.speak_thanks()
-        return
-
-    if 'goodbye' in text.lower() or 'shutdown' in text.lower():
-        if not FANCY:
-            speech.speak(f"Goodbye {name}, just call my name if you're in need of assistance")
-        else:
-            ellab.speak(f"Goodbye {name}, just call my name if you're in need of assistance")
-        listen_for_wake_word(source)
-        return
-
-    if 'weather' in text.lower():
-        city = text.split('in')[-1].strip() if 'in' in text else 'Reykjavik'
-        weather_report = get_weather(city)
-        if not FANCY:
-            speech.speak(weather_report)
-        else:
-            ellab.speak(weather_report)
-        return
-
-    if 'set a timer' in text.lower() or 'wake me up in' in text.lower():
-        set_timer(text.lower())
-        return
-
-    # Process OpenAI response in a separate thread
     future_response = executor.submit(get_openai_response, text)
     response_text = future_response.result()
     print(f'AI response: {response_text}')
-    if not FANCY:
-        speech.speak(response_text)
+
+    # Check if the response contains an action directive
+    if '[' in response_text and ']' in response_text:
+        try:
+            action_text = response_text.split('[')[1].split(']')[0]
+            response_message = response_text.split('[')[0].strip()
+
+            # Speak the response message
+            if not FANCY:
+                speech.speak(response_message)
+            else:
+                ellab.speak(response_message)
+
+            # Debugging output
+            print(f'Action text: {action_text}')
+            print(f'Response message: {response_message}')
+
+            # Ensure the action directive starts with 'action:'
+            if action_text.lower().startswith("action:"):
+                action_text = action_text[7:].strip()
+
+            # Parse the action and parameters
+            action_parts = action_text.split(',', 1)
+            action = action_parts[0].strip().strip('\'')
+            params = action_parts[1].strip().strip('\'') if len(action_parts) > 1 else ''
+
+            # Debugging output
+            print(f'Action: {action}')
+            print(f'Params: {params}')
+
+            if action == "play music":
+                song_name, artist = map(str.strip, params.split(','))
+                spotify.play_music(f'play {song_name} by {artist}', source)
+            elif action == "shuffle liked songs":
+                spotify.shuffle_liked_songs()
+            elif action == "read shopping list":
+                shopping_list.check_list(source)
+            elif action == "add to shopping list":
+                items = [item.strip() for item in params.split(',')]
+                shopping_list.append_list(items)
+            elif action == "clear shopping list":
+                shopping_list.clear_list()
+            elif action == "set timer":
+                duration, unit = map(str.strip, params.split(','))
+                set_timer(f'set a timer for {duration} {unit}')
+            elif action == "get weather":
+                city = params.strip()
+                weather_report = get_weather(city)
+                if not FANCY:
+                    speech.speak(weather_report)
+                else:
+                    ellab.speak(weather_report)
+            else:
+                raise ValueError(f"Unknown action: {action}")
+        except Exception as e:
+            print(f"Error handling action: {e}")
+            if not FANCY:
+                speech.speak("I'm not sure how to help with that.")
+            else:
+                ellab.speak("I'm not sure how to help with that.")
     else:
-        ellab.speak(response_text)
-    # Continue listening for more commands
-    listen_and_respond(source)
+        # If no action directive, speak the whole response
+        if not FANCY:
+            speech.speak(response_text)
+        else:
+            ellab.speak(response_text)
+
 
 def set_timer(command):
     import re
@@ -180,11 +210,10 @@ def set_timer(command):
     elif 'hour' in unit:
         duration_seconds = duration * 3600
 
-    speech.speak(f"Setting a timer for {duration} {unit}s.")
+    speech.speak(f"Setting a timer for {duration} {unit}.")
     Timer(duration_seconds, timer_finished).start()
 
 def timer_finished():
-    # TODO: Spila eitthvað hljóð þangað til að maður segir stop
     speech.speak("Timer finished")
 
 if __name__ == "__main__":
