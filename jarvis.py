@@ -18,7 +18,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 openweather_api_key = os.getenv('OPENWEATHER_API_KEY')
 
 client = openai.OpenAI()
-model = 'gpt-3.5-turbo-instruct'
+model = 'gpt-4o'
 name = 'Sir'
 FANCY = False
 
@@ -30,7 +30,7 @@ shopping_list = ShoppingList(name, FANCY)
 
 persistent_context = f"""
 You are an AI assistant called Jarvis. You are talking to a user named {name}, who lives in Iceland and is a computer science student at Reykjavík University.
-When addressing the user, use {name}. You are to speak with a posh british accent, like you are of royalty. Do NOT greet the user as you have already greeted him.
+When addressing the user, use {name}. You are to speak with a posh British accent, like you are of royalty. Do NOT greet the user as you have already greeted him.
 Right now, it is {datetime.datetime.now()}.
 """
 
@@ -41,18 +41,21 @@ def clean_response(text):
     return text.strip().strip('-').strip()
 
 def get_openai_response(prompt):
-    conversation = (persistent_context + 
-                    f"\nUser: {last_interaction['user']}\nAI: {last_interaction['ai']}\n" + 
-                    f"User: {prompt}\nAI:")
-    response = client.completions.create(
+    conversation = [
+        {"role": "system", "content": persistent_context},
+        {"role": "user", "content": last_interaction['user']},
+        {"role": "assistant", "content": last_interaction['ai']},
+        {"role": "user", "content": prompt}
+    ]
+    response = client.chat.completions.create(
         model=model,
-        prompt=conversation,
+        messages=conversation,
         max_tokens=150,
         temperature=0.7,
         n=1,
         stop=None
     )
-    response_text = response.choices[0].text.strip()
+    response_text = response.choices[0].message.content.strip()
     last_interaction['user'] = prompt
     last_interaction['ai'] = clean_response(response_text)
     return last_interaction['ai']
