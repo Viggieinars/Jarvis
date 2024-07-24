@@ -18,7 +18,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 openweather_api_key = os.getenv('OPENWEATHER_API_KEY')
 
 client = openai.OpenAI()
-model = 'gpt-3.5-turbo-instruct'
+model = 'gpt-4o'
 name = 'Sir'
 FANCY = False
 
@@ -60,17 +60,24 @@ def clean_response(text):
     return text.strip().strip('-').strip()
 
 def get_openai_response(prompt):
-    conversation = f"{persistent_context}\nRequest from user: {prompt}"
-    response = client.completions.create(
+    conversation = [
+        {"role": "system", "content": persistent_context},
+        {"role": "user", "content": last_interaction['user']},
+        {"role": "assistant", "content": last_interaction['ai']},
+        {"role": "user", "content": prompt}
+    ]
+    response = client.chat.completions.create(
         model=model,
-        prompt=conversation,
+        messages=conversation,
         max_tokens=150,
         temperature=0.7,
         n=1,
         stop=None
     )
-    response_text = response.choices[0].text.strip()
-    return clean_response(response_text)
+    response_text = response.choices[0].message.content.strip()
+    last_interaction['user'] = prompt
+    last_interaction['ai'] = clean_response(response_text)
+    return last_interaction['ai']
 
 def listen_for_wake_word(source):
     print('Listening for "Jarvis"....')
