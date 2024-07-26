@@ -27,7 +27,7 @@ class ShoppingList:
     def add_items(self, items):
         with open("shopping_list.txt", "a") as file:
             for item in items:
-                file.write(f"{item}\n")
+                file.write(f"{item.replace("'", "")}\n")
                 print(f'Added: {item}')
         self._speak('Items added to the shopping list.')
 
