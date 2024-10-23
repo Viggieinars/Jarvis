@@ -25,6 +25,7 @@ twilio_client = Client(twilio_account_sid, twilio_auth_token)
 client = openai.OpenAI()
 model = 'gpt-4o-mini'
 name = 'Sir'
+# Set to true for Elevenlabs voice
 FANCY = False
 
 executor = ThreadPoolExecutor(max_workers=2)
@@ -35,7 +36,8 @@ spotify = SpotifyController(name, FANCY)
 shopping_list = ShoppingList(name, FANCY)
 
 persistent_context = f"""
-You are Jarvis, an AI voice assistant with a posh British accent, assisting {name}, a computer science student at Reykjavík University in Iceland and occationally his girlfriend. Your primary role is to answer questions and assist the user with various tasks by executing specific program functions.
+You are Jarvis, an AI voice assistant python program with a posh British accent, assisting {name} Víkingur Einarsson, a computer science student at Reykjavík University in Iceland and occationally his girlfriend, Þórgunnur. Víkingur Loves coding, skateboarding and the Zelda franchise.
+Your primary role is to answer questions and assist the user with various tasks by executing specific program functions.
 
 Here are the formats for different tasks:
 
@@ -45,26 +47,26 @@ Here are the formats for different tasks:
   - Read: [action: 'read shopping list']
   - Add: [action: 'add to shopping list', 'item1', 'item2', ...]
   - Clear: [action: 'clear shopping list']
-  - Send: [action: 'send shopping list', 'to']
+  - Send: [action: 'send shopping list', 'reciever']
 - Timer: [action: 'set timer', 'duration', 'unit']
 - Weather: [action: 'get weather', 'city']
-- Send a text message: [action: 'send text', 'to', 'message']
+- Send a text message: [action: 'send text', 'reciever', 'message']
 - Write code: [action: 'write code', 'code']
 
-the 'to' parameter in the text message or send shopping list action call will always be either 'boyfriend' or 'girlfriend'
+the 'reciever' parameter in the text message or send shopping list action call will always be either 'boyfriend' or 'girlfriend'
 
 For general information queries, respond with an appropriate answer without action calls.
 
 Instructions:
-1. Always respond with a polite message.
-2. If the request matches one of the tasks above, include the corresponding action call in brackets at the end.
-3. NEVER include the word 'Response:' or any other prefix in your reply.
+1. Always respond politely, calling the user {name} or ma'am if it's Þórgunnur.
+2. Include the action call if the request matches a task.
+3. Do not prefix replies with 'Response:'.
 4. NEVER invent action calls or include brackets in your response unless it is one of the specified action calls.
 5. Do not greet the user as he has already been greeted.
 6. Always include the action call in the correct format when the request matches one of the tasks.
-7. Keep your responses brief and informative (maximum 100 words)
-8. If no City is specified when asking for weather just make the action call with city=Reykjavík
-9. Your response should never include a numbered list, just whole sentences
+7. Keep your responses brief and informative (maximum 100 words unless providing code)
+8. Use city=Reykjavík if no city is specified for weather.
+9. Avoid numbered lists; use whole sentences.
 10. When asked to write code do not include the code in your response, only in the action call. The code will be formatted by autopep8
 Today is {datetime.datetime.now}
 """
@@ -86,7 +88,7 @@ def get_openai_response(prompt):
     response = client.chat.completions.create(
         model=model,
         messages=conversation,
-        max_tokens=150,
+        max_tokens=200,
         temperature=0.7,
         n=1,
         stop=None
@@ -235,9 +237,9 @@ def handle_command(text, source):
 
 def send_shopping_list(to):
     message = 'Items to purchase at the store:\n'
-    number = '+3547773201'
+    number = os.getenv('NUMBER1')
     if to.replace("'", "") == 'girlfriend':
-        number = "+3548670204"
+        number = os.getenv('NUMBER2') 
 
     with open('shopping_list.txt', 'r') as file:
         items = file.readlines()
@@ -258,18 +260,18 @@ def send_shopping_list(to):
 
     twilio_client.messages.create(
     body=message,
-    from_="+17622485726",
+    from_= os.getenv('FROM_NUMBER'),
     to=number,
 )
     
 
 def send_text_message(to, message):
-    number = '+3547773201'
+    number = os.getenv('NUMBER1')
     if to.replace("'", "") == 'girlfriend':
-        number = "+3548670204" 
+        number = os.getenv('NUMBER2') 
     twilio_client.messages.create(
         body=message,
-        from_="+17622485726",
+        from_= os.getenv('FROM_NUMBER'),
         to=number
     )
 

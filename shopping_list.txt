@@ -1,6 +1,5 @@
-flour
-sugar
-cocoa powder
-butter
-eggs
-vanilla extract
+pizza dough
+tomato sauce
+mozzarella cheese
+pepperoni
+bell peppers
