@@ -17,21 +17,12 @@ class SpotifyController:
         self.ellab = ElevenLabsController(name)
         self.fancy_voice = fancy_voice
 
-    def play_music(self, command, source):
+    def play_music(self, song_name, artist_name):
         self._speak('Playing music on Spotify.')
+        search_query = f"{song_name} {artist_name}".strip()
+        self.search_and_play(search_query)
 
-        if 'liked songs' in command.lower() or 'like songs' in command.lower():
-            self.shuffle_liked_songs(source)
-            return
-
-        search_query = command.replace('play', '').strip()
-
-        # Remove 'by' from the search query
-        search_query = search_query.replace('by', '').strip()
-
-        self.search_and_play(search_query, source)
-
-    def shuffle_liked_songs(self, source):
+    def shuffle_liked_songs(self):
         results = self.sp.current_user_saved_tracks(limit=50)
         if not results['items']:
             self._speak('No liked songs found.')
@@ -54,20 +45,7 @@ class SpotifyController:
             self._speak('Failed to start playback on the active device.')
             print(e)
 
-    def search_and_play(self, search_query, source):
-        if not search_query:
-            self._speak('Please tell me the name of the song, artist, or album.')
-            audio = self.speech.recognizer.listen(source, timeout=5, phrase_time_limit=5)
-            try:
-                search_query = self.speech.recognizer.recognize_google(audio)
-                print(f'You said: {search_query}')
-            except sr.UnknownValueError:
-                self._speak('I did not catch that. Please say the name of the song, artist, or album again.')
-                return
-            except sr.WaitTimeoutError:
-                self._speak('Listening timeout reached, please say something.')
-                return
-
+    def search_and_play(self, search_query):
         devices = self.sp.devices()
         if not devices['devices']:
             self._speak('No active Spotify devices found. Please start playing Spotify on one of your devices and try again.')

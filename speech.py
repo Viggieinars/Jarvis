@@ -9,6 +9,7 @@ class Speech:
         voice = self.engine.getProperty('voices')[14]
         self.engine.setProperty('voice', voice.id)
         self.recognizer = sr.Recognizer()
+        self.recognizer.pause_threshold = 2
 
         self.greetings = [
             f'Yes {self.name}?',
